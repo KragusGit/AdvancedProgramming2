@@ -1,13 +1,15 @@
 #include "Maze.h"
-#include <time.h>
 #include<fstream>
 #include "Main.h"
 #include "Player.h"
-#include <filesystem>
 #include<chrono>
 #include<thread>
+#include <string>
+#include <filesystem>
+
 
 using namespace std;
+namespace fileSys = std::filesystem;
 
 struct CustomNodeInfo
 {
@@ -20,32 +22,49 @@ struct CustomNodeInfo
 	}
 };
 
-_Maze::Maze* maze;
+Maze* maze;
 CustomNodeInfo** CustomInfo;
-vector<Node*> Path;
+vector<vector<int>>  Path;
 ofstream os;
 Player* players;
+string fileString;
+int numberOfExits;
+int maze_size;
+fstream fs;
 
+const string FOLDER_NAME = "SavedMazes";
 const string MAIN_MENU_TITLE = "Please Choose one from these options:";
 const string MAIN_MENU_OPTION1 = "1. Generate a new Maze.";
-const string MAIN_MENU_EXIT_HINT = "3. EXIT. ";
+const string MAIN_MENU_EXIT_HINT = "2. EXIT. ";
 const string MAIN_MENU_INPUT_HINT = "To select an option, type respective numbers : ";
 const string MAZE_GENERATION_TITLE = "Please answer following questions : ";
 const string MAZE_GENERATION_SIZE_INPUT_HINT = "Enter size of maze(Max - 50, MIN - 5) : ";
 const string MAZE_GENERATION_EXIT_INPUT_HINT = "Enter number of exits to create(Min - 2) : ";
+const string SAVE_FILE_HINT = "Do You Want To Save This Maze ? (y/n) : ";
 const string GENERIC_ERROR_MESSAGE = "Wrong Input! Please try again. ";
-
 const int MAX_MAZE_SIZE = 50;
-int numberOfExits;
-int maze_size;
 
-void PrintMaze(_Maze::Maze* maze)
+void PrintMaze(Maze* maze)
 {
+	char charToPrint;
 	for (int i = 0; i < maze->GetSize(); ++i) {
-		for (int j = 0; j < maze->GetSize(); ++j)
-			cout << (CustomInfo[i][j].isOccupied ? (char)(CustomInfo[i][j].occupiedByPlayerIndex - '0') : ((char)(i == maze->GetSize() / 2 && j == maze->GetSize() / 2)) ? 'F' : ((char)maze->GetAppropriateNodeOutput(maze->GetNode(i, j)))) << " ";
+		for (int j = 0; j < maze->GetSize(); ++j) {
+
+			if (((i == maze->GetSize() / 2 && j == maze->GetSize() / 2)))
+				charToPrint = 'F';
+			else if (CustomInfo[i][j].isOccupied)
+				charToPrint = ('0' + (CustomInfo[i][j].occupiedByPlayerIndex));
+			else
+				charToPrint = maze->GetAppropriateNodeOutput(maze->GetNode(i, j));
+
+			cout << charToPrint << " ";
+			fileString += charToPrint;
+			fileString += " ";
+		}
 		cout << endl;
+		fileString += '\r\n';
 	}
+	fileString += '\r\n';
 }
 
 void InitializeCuztomInfo(int size)
@@ -55,11 +74,9 @@ void InitializeCuztomInfo(int size)
 		CustomInfo[i] = new CustomNodeInfo[size];
 }
 
-
 void GenerateMaze()
 {
-	system("CLS");
-	maze = new _Maze::Maze(maze_size, numberOfExits);
+	maze = new Maze(maze_size, numberOfExits);
 	InitializeCuztomInfo(maze->GetSize());
 }
 
@@ -80,7 +97,7 @@ void ShowMazeGenerationMenu()
 
 		if (cin.fail() || input > MAX_MAZE_SIZE || input < 5) {
 			cin.clear();
-			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			cin.ignore((numeric_limits<streamsize>::max)(), '\n');
 			cout << GENERIC_ERROR_MESSAGE << endl;
 		}
 		else {
@@ -99,7 +116,7 @@ void ShowMazeGenerationMenu()
 
 		if (cin.fail() || input > maze_size / 2 || input < 0) {
 			cin.clear();
-			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			cin.ignore((numeric_limits<streamsize>::max)(), '\n');
 			cout << GENERIC_ERROR_MESSAGE << endl;
 		}
 		else
@@ -112,6 +129,7 @@ void ShowMazeGenerationMenu()
 	InitializePlayers();
 	PrintMaze(maze);
 	Simulate();
+
 }
 void InitializePlayers()
 {
@@ -122,10 +140,10 @@ void InitializePlayers()
 		CustomInfo[maze->Exits[i]->row][maze->Exits[i]->col].occupiedByPlayerIndex = i;
 		Path = maze->GetPath(maze->Exits[i], maze->GetNode(maze->GetSize() / 2, maze->GetSize() / 2));
 		for (int j = 0; j < Path.size(); j++)
-			players[i].path.push_back(new point(Path[j]->row, Path[j]->col));
+			players[i].AddPathPointInBack(Path[j][0], Path[j][1]);
 
-		players[i].path.insert(players[i].path.begin(), new point(maze->Exits[i]->row, maze->Exits[i]->col));
-		players[i].path.insert(players[i].path.end(), new point(maze->GetSize() / 2, maze->GetSize() / 2));
+		players[i].AddPathPointInFront(maze->Exits[i]->row, maze->Exits[i]->col);
+		players[i].AddPathPointInBack(maze->GetSize() / 2, maze->GetSize() / 2);
 	}
 }
 
@@ -143,7 +161,7 @@ void ShowMainMenu()
 		cout << endl;
 		if (cin.fail() || choice > 3 || choice < 1) {
 			cin.clear();
-			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			cin.ignore((numeric_limits<streamsize>::max)(), '\n');
 			cout << GENERIC_ERROR_MESSAGE << endl;
 		}
 		else
@@ -153,7 +171,7 @@ void ShowMainMenu()
 	switch (choice)
 	{
 	case 1: ShowMazeGenerationMenu(); break;
-	case 3: EXIT(); break;
+	case 2: EXIT(); break;
 	}
 
 }
@@ -161,10 +179,64 @@ void ShowMainMenu()
 void main()
 {
 	srand(time(NULL));
-	ShowMainMenu();
-	delete maze;
-	system("pause");
+	while (true)
+	{
+		system("CLS");
+		fileString.clear();
+		ShowMainMenu();
+		ShowSaveOption();
+		system("pause");
+		delete maze;
+	}
 }
+
+void ShowSaveOption()
+{
+	char input;
+	while (true)
+	{
+		cout << SAVE_FILE_HINT;
+		cin >> input;
+		cout << endl;
+		if (input == 'y' || input == 'Y' || input == 'n' || input == 'N')
+			break;
+		else
+			cout << GENERIC_ERROR_MESSAGE << endl;
+	}
+	switch (input)
+	{
+	case 'Y':
+	case 'y':WriteToFile(); break;
+	}
+}
+
+void WriteToFile()
+{
+	string fileName;
+	int fileNumber = 1;
+	if (!fileSys::exists(FOLDER_NAME) || !fileSys::is_directory(FOLDER_NAME))
+		fileSys::create_directory(FOLDER_NAME);
+
+	while (true)
+	{
+		fileName = "Maze_" + std::to_string(fileNumber) + ".txt";
+		if (fileSys::exists(FOLDER_NAME + "\\" + fileName))
+			fileNumber++;
+		else
+			break;
+	}
+
+	fs.open(FOLDER_NAME + "\\" + fileName, fstream::app);
+	if (fs.is_open())
+	{
+		fs << fileString;
+		fs.close();
+		cout << "Maze saved in " << FOLDER_NAME + "/" + fileName << endl;
+	}
+	else
+		cout << "Maze could not be saved!" << endl;
+}
+
 
 bool AllPlayerReached()
 {
@@ -178,6 +250,7 @@ bool AllPlayerReached()
 
 void Simulate()
 {//Update Loop
+
 	while (true)
 	{
 
@@ -198,9 +271,9 @@ void Simulate()
 			}
 		}
 		PrintMaze(maze);
-		if (AllPlayerReached())
+		if (AllPlayerReached()) {
 			break;
-
+		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(800));
 	}
 }

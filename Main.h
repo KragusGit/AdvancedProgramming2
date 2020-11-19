@@ -1,18 +1,11 @@
 
 void ShowMazeGenerationMenu();
-
 void InitializePlayers();
-
-void SaveMazeToFile(_Maze::Maze* maze);
-
 void ShowMainMenu();
-
+void main();
+void ShowSaveOption();
+void WriteToFile();
 bool AllPlayerReached();
-
 void Simulate();
-
 void GenerateMaze();
-
-void ShowMazeLoadMenu();
-
 void EXIT();

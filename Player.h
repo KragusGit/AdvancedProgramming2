@@ -18,14 +18,17 @@ struct point {
 
 class Player
 {
-public:
-	Player();
-
 	vector<point*> path;
+public:
+
+	Player();
+	~Player();
 	int indexInPath;
 	bool hasReached;
 
 	void Move();
+	void AddPathPointInFront(int x, int y);
+	void AddPathPointInBack(int x,int y);
 	point* NextStep();
 	point* CurrentStep();
 
