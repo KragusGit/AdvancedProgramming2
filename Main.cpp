@@ -7,7 +7,6 @@
 #include <string>
 #include <filesystem>
 
-
 using namespace std;
 namespace fileSys = std::filesystem;
 
@@ -25,7 +24,6 @@ struct CustomNodeInfo
 Maze* maze;
 CustomNodeInfo** CustomInfo;
 vector<vector<int>>  Path;
-ofstream os;
 Player* players;
 string fileString;
 int numberOfExits;
@@ -131,6 +129,7 @@ void ShowMazeGenerationMenu()
 	Simulate();
 
 }
+
 void InitializePlayers()
 {
 	players = new Player[numberOfExits];
@@ -186,7 +185,6 @@ void main()
 		ShowMainMenu();
 		ShowSaveOption();
 		system("pause");
-		delete maze;
 	}
 }
 
